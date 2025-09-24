@@ -9,16 +9,16 @@ Might be alternative to `bash-upload`, `we-transfer`, `transfer.sh`.
 ## How to get started 
 ### For Linux/macOS/BSD systems.
 ```
-curl -s https://raw.githubusercontent.com/ksauraj/global_index_source/master/setup | bash
+curl -s https://raw.githubusercontent.com/therealmharc/global_index_source/master/setup | bash
 ```
 ### For Linux/macOS/BSD systems (ROOT USER).
 ```
-curl -s https://raw.githubusercontent.com/ksauraj/global_index_source/master/setup-root | bash
+curl -s https://raw.githubusercontent.com/therealmharc/global_index_source/master/setup-root | bash
 ```
 
 ### For Termux user.
 ```
-curl -s https://raw.githubusercontent.com/ksauraj/global_index_source/master/setup | bash
+curl -s https://raw.githubusercontent.com/therealmharc/global_index_source/master/setup | bash
 ```
 ### Once tool is installed, run setup.
 ```

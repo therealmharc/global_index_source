@@ -9,8 +9,6 @@ mkdir -p "$KSAU_CACHE_DIR"
 
 readonly REMOTES=(
     "oned"
-    "hakimionedrive"
-    "saurajcf"
 )
 SELECTED_REMOTE=oned # default
 
@@ -64,7 +62,7 @@ dependencies() {
     sudo curl https://rclone.org/install.sh 2>/dev/null | sudo bash >/dev/null 2>&1
     echo ""
     echo "${orange}Please install jq manually, No script found"
-    echo "Possibly with 
+    echo "Possibly with
 			${aqua}sudo apt-get install jq ${normal}OR
 			${aqua}sudo pacman -S jq ${normal}OR
 			${aqua}sudo dnf install jq ${normal}OR
@@ -74,24 +72,23 @@ dependencies() {
     echo ''
 }
 
-sanity_checks() {
+setup() {
     mkdir -p ~/.config/rclone
     if ! command -v wget &>/dev/null || ! command -v jq &>/dev/null || ! command -v rclone &>/dev/null; then
         echo "${Red}Dependencies are not installed!${normal}"
         echo "${aqua}Please install jq, wget and rclone.${normal}"
         exit 1
     fi
-}
 
-refresh() {
-    echo "${aqua}Downloading latest rclone config${normal}"
-    wget https://gist.githubusercontent.com/hakimifr/aabebeea8c1ce0c5a6968fc0d78ed5ae/raw/rclone.conf -O rclone.conf &>/dev/null
-    if [ "$?" -ne 0 ]; then
-        echo "Config download failed!"
-        return
+    url=$1
+    if [ -z "$url" ]; then
+    echo "Usage: ksau setup <URL>, message t.me/therealmharc to get <URL>"
+    exit 1
     fi
-    mv rclone.conf ~/.config/rclone/rclone.conf
-    echo "${lightgreen}rclone config updated successfully.${normal}"
+    wget $url -O rclone.conf >/dev/null 2>&1
+    mv rclone.conf ~/.config/rclone
+    echo "${lightgreen}Setup Completed${normal}"
+    exit
 }
 
 # Generates new filename with random strings at last (before extension if present).
@@ -123,7 +120,7 @@ select_remote_most_free() {
     for remote in "${REMOTES[@]}"; do
         echo -en "$(clearline)Checking free space for each remote -- remote: ${lightgreen}${remote}${normal}\r"
         if ! remotes_free_space+=("$(rclone about "$remote:" --full | grep Free | cut -d: -f2 | tr -d '[:space:]')"); then
-            echo "${Red}Error checking free space. Please run ksau refresh. Falling back to random remote.${normal}"
+            echo "${Red}Error checking free space. Please run ksau setup. Falling back to random remote.${normal}"
             select_remote_random
             return
         fi
@@ -192,15 +189,9 @@ rclone_progress_bar() {
     touch log
     if [ -z "$new_filename" ]; then new_filename=$(basename "$file"); fi
     case $SELECTED_REMOTE in
-    hakimionedrive)
-        rclone -P --checkers=32 --onedrive-chunk-size 60M copyto "$file" "hakimionedrive:/Public/${u_folder}/$new_filename" | tee log >/dev/null || touch "$status_dir/failed" &
-        ;;
     oned)
-        rclone -P --checkers=32 --onedrive-chunk-size 60M copyto "$file" "oned:/${u_folder}/$new_filename" | tee log >/dev/null || touch "$status_dir/failed" &
-        ;;
-    saurajcf)
-        rclone -P --checkers=32 --onedrive-chunk-size 60M copyto "$file" "saurajcf:/MY_BOMT_STUFFS/${u_folder}/$new_filename" | tee log >/dev/null || touch "$status_dir/failed" &
-        ;;
+        rclone -P --checkers=32 --onedrive-chunk-size 60M copyto "$file" "oned:/trm-oneportal/${u_folder}/$new_filename" | tee log >/dev/null || touch "$status_dir/failed" &
+	;;
     esac
     until [ -z "$(jobs -r)" ]; do
         if [ -f "$status_dir/failed" ]; then
@@ -273,31 +264,18 @@ upload() {
     echo -e "\n$(clearline)$(upline 1)$(clearline)$(upline 1)"
     echo "$(clearline) Upload Completed "
     case $SELECTED_REMOTE in
-    hakimionedrive)
-        echo "$(clearline) Download link - ${lightgreen}https://onedrive-vercel-index-kohl-eight-30.vercel.app/${url_folder}/${url_file}${normal} "
-        ;;
     oned)
-        echo "$(clearline) Download link - ${lightgreen}https://index.sauraj.eu.org/${url_folder}/${url_file}${normal} "
-        ;;
-    saurajcf)
-        echo "$(clearline) Download link - ${lightgreen}https://my-index-azure.vercel.app/${url_folder}/${url_file}${normal} "
-        ;;
+        echo "$(clearline) Download link - ${lightgreen}https://oneportal-ecv.pages.dev/${url_folder}/${url_file}${normal} "
+	;;
     esac
     clearline
 
     if [[ $KSAUOPT_QUIET == true ]]; then
         case $SELECTED_REMOTE in
-        hakimionedrive)
-            builtin echo "https://onedrive-vercel-index-kohl-eight-30.vercel.app/${url_folder}/${url_file}"
-            ;;
-        oned)
-            builtin echo "https://index.sauraj.eu.org/${url_folder}/${url_file}"
-            ;;
-        saurajcf)
-            builtin echo "https://my-index-azure.vercel.app/${url_folder}/${url_file}"
-            ;;
+            oned)
+                builtin echo "https://oneportal-ecv.pages.dev/${url_folder}/${url_file}"
+                ;;
         esac
-
     fi
 }
 
@@ -317,7 +295,7 @@ ${aqua}upload [-r] [FILE] [FOLDER]${normal}: Uploads the given file to the given
 
 ${aqua}list${normal}                      : List available remotes and show their usage info.
 
-${aqua}refresh${normal}                   : Refresh rclone config. Try this if upload does not work.
+${aqua}setup${normal}                     : Required while using first time.
 
 ${aqua}update${normal}                    : Fetch and install latest version.
                             available.
@@ -329,13 +307,8 @@ ${aqua}help${normal}                      : Show this message.
 ${aqua}version${normal}                   : Show ksau version.
 
 Example: ${lightgreen}ksau upload test.txt Public${normal}
-${Blue}Note:${normal} Each time ksau is run, even if not for uploading, it will attempt to refresh
-      the remote with most free space cache. This might cause a few seconds delay,
-      depending on the internet connection.
 
-${orange}Tool By Sauraj (@Ksauraj) and @hakimifr${normal}
-${orange}Join our Telegram channel for updates:${normal}
-${aqua}  https://t.me/ksau_update${normal}
+${orange}Tool By Sauraj (@Ksauraj) and @Hakimi0804${normal}
 "
 }
 
@@ -361,7 +334,7 @@ update() {
     tmpfilename=ksau-$RANDOM
 
     echo "Fetching"
-    curl --progress-bar -Lo "$tmpfilename" https://raw.githubusercontent.com/ksauraj/global_index_source/master/ksau
+    curl --progress-bar -Lo "$tmpfilename" https://raw.githubusercontent.com/therealmharc/global_index_source/master/ksau
     upline 1
     clearline
     upline 1
@@ -414,28 +387,32 @@ done
 # Remove all args parsed by getopts
 shift $((OPTIND - 1))
 
-sanity_checks
-if [[ $1 == "refresh" ]]; then
-    refresh
+if [[ $1 == "setup" ]]; then
+    setup "$2"
 fi
 
 # Call this because even if user's not uploading, we want to
 # refresh the cache either way if its older than set timeout
-select_remote_most_free_cached
+
+#select_remote_most_free_cached
+#No longer needed since we are using only one remote in this fork
 
 if [[ $1 == "upload" ]]; then
     readonly file="$2"
     readonly u_folder="$3"
+    if [ -z "$file" ]; then
+        echo -e "Error: 'file path' is not specified. Upload aborted.\nSpecify which file to upload"
+        exit 1
+    fi
+    if [ -z "$u_folder" ]; then
+        echo -e "Error: 'upload directory' is not specified. Upload aborted.\nSpecify a folder name (it can be anything) in which files will be uploaded to help organize them better."
+        exit 1
+    fi
     if [ -n "$KSAUOPT_SPECIFIC_REMOTE" ]; then
         SELECTED_REMOTE=$KSAUOPT_SPECIFIC_REMOTE
         upline 1
         clearline
         echo "Using requested remote: $SELECTED_REMOTE"
-    elif [ "$(stat -c '%s' "$file")" -lt 104857600 ]; then # -lt 100MiB
-        upline 1
-        clearline
-        echo "File size is <100MiB, selecting random remote"
-        select_remote_random # override most free cached
     fi
     upload
 elif [[ $1 == "dependencies" ]]; then
